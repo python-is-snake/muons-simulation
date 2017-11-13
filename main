@@ -1,0 +1,102 @@
+###building the random cos^2x and cos2 function
+import numpy as np
+import random as rnd
+C2=[]
+for i in range(1,1000):
+    j=0
+    re2=np.cos(np.pi*i/2000)**2
+    while j<(10*re2):
+        C2.append(re2)
+        j+=1
+    
+C3=[] #creates random velocities with given distribution
+for ii in range(1,1000):
+    jj=0
+    re2=np.cos(np.pi*(ii-300)/2000)
+    while jj<(10*re2):
+        if re2>0.7:
+            C3.append(10*re2) #velocity multiplier
+        jj+=1
+
+def rndcos2():
+    return C2[rnd.randint(0,len(C2)-1)]
+def randvel():
+    return C3[rnd.randint(0,len(C3)-1)]
+
+#%%
+'''creates a random particle'''
+def create(v):
+    x,y,z=rnd.uniform(-900,900),rnd.uniform(-900,900),0 #source grid
+    theta,phi=np.arccos(rndcos2()),rnd.uniform(0,np.pi)  #the angle
+    vz,vx,vy=v*np.cos(theta),v*np.sin(theta)*np.sin(phi),v*np.sin(theta)*np.cos(phi) #polar coordinates
+    return [x,y,z,vx,vy,vz]
+
+def move(A,t=1):     #moves a given particle a step forvard using its velocity vector
+    for i in range(3):
+        A[i]+=A[i+3]*t  
+    return A
+
+
+def near(K,d): #tests if a particle is near a paddle
+    if d==0:
+        if  (K[2]==0 and K[0]<0 and K[0]>-50 and 40-abs(K[1])<0): #the first paddle
+            return True
+        else:
+            return False
+    else:
+        if (abs(K[2]-d)<3 and K[0]<0 and K[0]>-50 and 40-abs(K[1])<0): #the second paddle!range of detection
+            return True
+        else:
+            return False
+def destroy(K):    #destroys it for the given conditions
+    a= K[0]<40 and K[3]<0
+    a1= K[0]>0 and K[3]>0
+    b= K[1]<50 and K[4]<0
+    b1= K[1]>0 and K[4]>0
+    return a or a1 or b or b1
+
+def TAC(A,B):    #the time of flight analyser
+    HT,LT=30,1   #the max and min time of response
+    SS,delta=sorted(A+B),[]
+    for i in range(len(SS)-1):
+        if (SS[i] in A) and (SS[i+1] in B):
+            tt=SS[i+1]-SS[i]
+            if tt<HT and tt>LT:
+                delta.append(tt)
+    return delta
+    
+        
+#%%
+import time
+beg=time.time()
+t,T,S=0,301010,[]
+time1,time2=[],[]
+#velocity=10            #velocity of the particles
+distance=40           #distance of the peddals in cm 
+delay=2               #delay on the second one in unit time
+while t<T:
+    New=create(2*randvel())         #creates a particle at time t
+    if destroy(New)==False:      #if it has no chance of hitting the second
+        S.append(New)            #one then it gets destroyed
+    for i in range(len(S)):
+        if near(S[i],0):         #if it transverses the first pedall
+            if t>30:
+                time1.append(t)  #then creates a timestamp
+        if near(S[i],distance):  #same, but a bit tricky
+            if t>30:
+                time2.append(t+delay)
+            S[i][2]+=4           #adds 4cm to the vertical possition
+        S[i]=move(S[i])
+    D=[]
+    for k in range(len(S)):           #to delete the particles that passed the device
+        if not (S[k][2]>distance+4 or destroy(S[k])):
+            D.append(S[k])
+    S=D
+    
+    t+=0.2                     #time increment
+end=time.time()
+print(len(time1),len(time2),'time:',end-beg)
+
+#%%
+import matplotlib.pylab as plt
+plt.hist(TAC(time1,time2),70)
